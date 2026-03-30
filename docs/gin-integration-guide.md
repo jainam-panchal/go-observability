@@ -160,6 +160,10 @@ Current span behavior:
 
 If the application does not use GORM, raw SQL helpers may be used instead, but GORM support is the required baseline.
 
+Current secondary helper entry point:
+
+- `database.OpenInstrumentedSQL(driverName, dsn)`
+
 ## 8. Outbound HTTP Integration
 
 All outbound HTTP clients used for service-to-service calls should use an instrumented transport or helper from the module.

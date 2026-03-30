@@ -118,6 +118,7 @@ Current exported integration points:
 - `httpclient.NewTransport(...)`
 - `httpclient.NewClient(...)`
 - `database.InstrumentGORM(...)`
+- `database.OpenInstrumentedSQL(...)`
 - `worker.StartJob(...)`
 
 Current Gin middleware metric names:
@@ -132,6 +133,13 @@ Current GORM adapter behavior:
 - uses `gorm.io/plugin/opentelemetry/tracing` for operation spans
 - adds a transaction wrapper span for `db.WithContext(ctx).Transaction(...)` flows
 - operation span names follow SQL summaries such as `select table_name` and `insert table_name`
+
+Current secondary raw SQL helper behavior:
+
+- opens an instrumented `*sql.DB`
+- preserves context propagation for `QueryContext`, `ExecContext`, and `BeginTx`
+- registers DB stats metrics using the global meter provider
+- attaches a low-cardinality `db.system` attribute derived from the driver name
 
 Current worker helper behavior:
 

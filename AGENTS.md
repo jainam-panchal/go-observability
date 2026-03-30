@@ -68,5 +68,7 @@ Required validation before marking implementation verified:
 - outbound HTTP verification remains under `SMK-GO-002`; keep it separate from inbound Gin middleware proof
 - `database.InstrumentGORM` is the canonical GORM entry point and must instrument an existing `*gorm.DB`, preserve `WithContext(ctx)`, emit query/create spans via the upstream plugin, and add a lightweight transaction wrapper span for transactional flows
 - GORM verification is tracked independently under `SMK-GO-009`; do not bundle it with future raw `database/sql` smoke rows
+- `database.OpenInstrumentedSQL` is the secondary raw SQL entry point and must open an instrumented `*sql.DB`, preserve parent context through `QueryContext` and `BeginTx`, and keep the raw SQL path clearly secondary to GORM
+- raw SQL verification remains under `SMK-GO-003`; do not let it redefine the primary GORM integration contract
 - `worker.StartJob` is the canonical worker entry point and must create a root job span when no parent exists, create a child job span when parent context exists, and emit stable low-cardinality job metrics
 - worker verification remains under `SMK-GO-004`; it must prove root-span creation, parent propagation, and worker metric emission together
