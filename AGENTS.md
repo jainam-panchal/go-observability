@@ -62,3 +62,5 @@ Required validation before marking implementation verified:
 - `logger.New` is the canonical constructor for container-friendly JSON stdout logging and must always attach `service`, `service_version`, and `deployment_environment`
 - `logger.WithContext` and `logger.L` are the contextual logging entry points and must inject `trace_id` and `span_id` only when the incoming span context is valid
 - logger verification is tracked independently under `SMK-GO-007`; do not reuse broader Gin/http smoke rows to prove logger behavior
+- `middleware.RegisterGinMiddlewares` is the canonical Gin entry point and must create one server span per request, extract remote parent context, preserve the traced request context for handlers, and record low-cardinality request metrics using route templates
+- Gin middleware verification is tracked independently under `SMK-GO-008`; do not reuse outbound HTTP smoke rows to prove inbound request instrumentation

@@ -101,3 +101,23 @@ The generic application integration guide should live at:
 - traces cover inbound, GORM-backed DB access, outbound HTTP, and worker execution
 - metrics expose useful golden signals without excessive cardinality
 - package behavior is testable and documented
+
+## Implemented API Surface
+
+Current exported integration points:
+
+- `telemetry.DefaultConfig()`
+- `telemetry.LoadConfigFromEnv()`
+- `telemetry.Init(...)`
+- `telemetry.MustInit(...)`
+- `logger.New(...)`
+- `logger.MustNew(...)`
+- `logger.WithContext(...)`
+- `logger.L(ctx)`
+- `middleware.RegisterGinMiddlewares(...)`
+
+Current Gin middleware metric names:
+
+- `http.server.request.count`
+- `http.server.request.duration`
+- `http.server.active_requests`

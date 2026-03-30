@@ -73,6 +73,13 @@ The observability module should expose a startup API that:
 - registers resource attributes
 - returns a shutdown function
 
+Current bootstrap API:
+
+- `telemetry.DefaultConfig()`
+- `telemetry.LoadConfigFromEnv()`
+- `telemetry.Init(cfg)`
+- `telemetry.MustInit(cfg)`
+
 ## 5. Gin Middleware Integration
 
 Register observability middleware near the top of the Gin middleware stack.
@@ -91,6 +98,16 @@ Middleware ordering should preserve:
 - tracing early
 - authentication and business middleware after trace context exists
 - recovery middleware still active for panic handling
+
+Current middleware entry point:
+
+- `middleware.RegisterGinMiddlewares(router)`
+
+Current metric names emitted by the Gin middleware:
+
+- `http.server.request.count`
+- `http.server.request.duration`
+- `http.server.active_requests`
 
 ## 6. Logging Integration
 
