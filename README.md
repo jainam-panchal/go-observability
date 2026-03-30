@@ -117,9 +117,17 @@ Current exported integration points:
 - `middleware.RegisterGinMiddlewares(...)`
 - `httpclient.NewTransport(...)`
 - `httpclient.NewClient(...)`
+- `database.InstrumentGORM(...)`
 
 Current Gin middleware metric names:
 
 - `http.server.request.count`
 - `http.server.request.duration`
 - `http.server.active_requests`
+
+Current GORM adapter behavior:
+
+- instruments an existing `*gorm.DB`
+- uses `gorm.io/plugin/opentelemetry/tracing` for operation spans
+- adds a transaction wrapper span for `db.WithContext(ctx).Transaction(...)` flows
+- operation span names follow SQL summaries such as `select table_name` and `insert table_name`

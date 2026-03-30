@@ -66,3 +66,5 @@ Required validation before marking implementation verified:
 - Gin middleware verification is tracked independently under `SMK-GO-008`; do not reuse outbound HTTP smoke rows to prove inbound request instrumentation
 - `httpclient.NewTransport` and `httpclient.NewClient` are the canonical outbound HTTP entry points and must preserve parent context, inject `traceparent`, and create client spans without forcing callers to replace their existing `http.Client` lifecycle
 - outbound HTTP verification remains under `SMK-GO-002`; keep it separate from inbound Gin middleware proof
+- `database.InstrumentGORM` is the canonical GORM entry point and must instrument an existing `*gorm.DB`, preserve `WithContext(ctx)`, emit query/create spans via the upstream plugin, and add a lightweight transaction wrapper span for transactional flows
+- GORM verification is tracked independently under `SMK-GO-009`; do not bundle it with future raw `database/sql` smoke rows

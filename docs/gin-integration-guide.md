@@ -137,9 +137,13 @@ Applications using GORM should be able to instrument an existing `*gorm.DB` inst
 Expected integration shape:
 
 1. build `*gorm.DB`
-2. register the observability GORM adapter or plugin
+2. register the observability GORM adapter
 3. pass request or job context using `WithContext(ctx)`
 4. preserve tracing through transactions
+
+Current helper entry point:
+
+- `database.InstrumentGORM(db)`
 
 Requirements:
 
@@ -147,6 +151,12 @@ Requirements:
 - transactions using `WithContext(ctx).Transaction(...)` must be traced
 - failing queries should appear as errored spans
 - API and worker traces should include GORM child spans where DB access occurs
+
+Current span behavior:
+
+- operation spans are emitted by the upstream GORM OTel plugin
+- operation span names are SQL summaries such as `select table_name` and `insert table_name`
+- transactional flows also emit a `gorm.Transaction` wrapper span
 
 If the application does not use GORM, raw SQL helpers may be used instead, but GORM support is the required baseline.
 
