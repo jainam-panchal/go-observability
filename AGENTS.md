@@ -54,3 +54,11 @@ Required validation before marking implementation verified:
 - update the repository checklist when a task is implemented or verified
 - implementation rows must not move to `verified` until their referenced smoke-test rows pass
 - smoke tests are release gates, not optional notes
+- record important evolving implementation context in `AGENTS.md` whenever it will materially affect later work, validation, or integration expectations
+- when a checklist verification mapping is too coarse to prove one task honestly, split the smoke row before marking the task complete
+
+## Implementation Context
+
+- `logger.New` is the canonical constructor for container-friendly JSON stdout logging and must always attach `service`, `service_version`, and `deployment_environment`
+- `logger.WithContext` and `logger.L` are the contextual logging entry points and must inject `trace_id` and `span_id` only when the incoming span context is valid
+- logger verification is tracked independently under `SMK-GO-007`; do not reuse broader Gin/http smoke rows to prove logger behavior
