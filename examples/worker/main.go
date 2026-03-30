@@ -9,6 +9,7 @@ import (
 	"github.com/jainam-panchal/go-observability/logger"
 	"github.com/jainam-panchal/go-observability/telemetry"
 	"github.com/jainam-panchal/go-observability/worker"
+	_ "github.com/mattn/go-sqlite3"
 	"go.uber.org/zap"
 )
 

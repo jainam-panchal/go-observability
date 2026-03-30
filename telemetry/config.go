@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -15,6 +16,7 @@ const (
 	defaultTraceSampleRate = 1.0
 	defaultTracesEnabled   = true
 	defaultMetricsEnabled  = true
+	defaultMetricExportInt = 10 * time.Second
 )
 
 // Config contains environment-driven settings used to bootstrap observability.
@@ -27,6 +29,7 @@ type Config struct {
 	TraceSamplingRate float64
 	TracesEnabled     bool
 	MetricsEnabled    bool
+	MetricsExportInt  time.Duration
 }
 
 // DefaultConfig returns the baseline configuration for services that have not
@@ -41,6 +44,7 @@ func DefaultConfig() Config {
 		TraceSamplingRate: defaultTraceSampleRate,
 		TracesEnabled:     defaultTracesEnabled,
 		MetricsEnabled:    defaultMetricsEnabled,
+		MetricsExportInt:  defaultMetricExportInt,
 	}
 }
 
@@ -57,6 +61,7 @@ func LoadConfigFromEnv() Config {
 	cfg.TraceSamplingRate = loadFloat("OTEL_TRACE_SAMPLING_RATE", cfg.TraceSamplingRate)
 	cfg.TracesEnabled = loadBool("OTEL_TRACES_ENABLED", cfg.TracesEnabled)
 	cfg.MetricsEnabled = loadBool("OTEL_METRICS_ENABLED", cfg.MetricsEnabled)
+	cfg.MetricsExportInt = loadDuration("OTEL_METRIC_EXPORT_INTERVAL", cfg.MetricsExportInt)
 
 	return cfg
 }
@@ -101,4 +106,28 @@ func loadFloat(key string, fallback float64) float64 {
 	}
 
 	return parsed
+}
+
+func loadDuration(key string, fallback time.Duration) time.Duration {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		return fallback
+	}
+
+	value = strings.TrimSpace(value)
+
+	if millis, err := strconv.Atoi(value); err == nil {
+		parsed := time.Duration(millis) * time.Millisecond
+		if parsed > 0 {
+			return parsed
+		}
+		return fallback
+	}
+
+	parsed, err := time.ParseDuration(value)
+	if err == nil && parsed > 0 {
+		return parsed
+	}
+
+	return fallback
 }

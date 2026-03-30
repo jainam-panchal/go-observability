@@ -116,7 +116,10 @@ func newMeterProvider(ctx context.Context, cfg Config, res *resource.Resource) (
 			return nil, nil, fmt.Errorf("init metric exporter: %w", err)
 		}
 
-		options = append(options, sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter)))
+		options = append(options, sdkmetric.WithReader(sdkmetric.NewPeriodicReader(
+			exporter,
+			sdkmetric.WithInterval(cfg.MetricsExportInt),
+		)))
 	}
 
 	provider := sdkmetric.NewMeterProvider(options...)
@@ -149,6 +152,9 @@ func validateConfig(cfg Config) error {
 	}
 	if cfg.TraceSamplingRate < 0 || cfg.TraceSamplingRate > 1 {
 		return fmt.Errorf("trace sampling rate must be between 0 and 1, got %v", cfg.TraceSamplingRate)
+	}
+	if cfg.MetricsExportInt <= 0 {
+		return fmt.Errorf("metric export interval must be greater than 0, got %v", cfg.MetricsExportInt)
 	}
 
 	return nil

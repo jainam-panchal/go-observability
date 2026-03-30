@@ -91,6 +91,24 @@ func TestInitRejectsInvalidConfig(t *testing.T) {
 	}
 }
 
+func TestInitRejectsInvalidMetricExportInterval(t *testing.T) {
+	t.Parallel()
+
+	cfg := DefaultConfig()
+	cfg.MetricsExportInt = 0
+
+	shutdown, err := Init(cfg)
+	if err == nil {
+		t.Fatal("Init() error = nil, want non-nil")
+	}
+	if shutdown != nil {
+		t.Fatal("Init() shutdown != nil, want nil on error")
+	}
+	if !strings.Contains(err.Error(), "metric export interval") {
+		t.Fatalf("Init() error = %q, want metric export interval error", err)
+	}
+}
+
 func TestMustInitPanicsOnInvalidConfig(t *testing.T) {
 	t.Parallel()
 
