@@ -89,6 +89,7 @@ The generic application integration guide should live at:
 
 - `docs/gin-integration-guide.md`
 - `docs/testing-matrix.md`
+- `docs/why-not-go-auto-sdk.md`
 
 ## Expected Consumers
 

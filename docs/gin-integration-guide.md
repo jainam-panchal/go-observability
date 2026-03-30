@@ -365,3 +365,7 @@ Reference package example:
 
 - `examples/api/main.go`
 - `examples/worker/main.go`
+
+Related package design note:
+
+- `docs/why-not-go-auto-sdk.md`
