@@ -151,3 +151,8 @@ Current worker helper behavior:
   - `worker.job.started`
   - `worker.job.completed`
   - `worker.job.duration`
+
+Reference examples:
+
+- `examples/api/main.go`
+- `examples/worker/main.go`

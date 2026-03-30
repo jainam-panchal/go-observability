@@ -364,3 +364,4 @@ Related platform-side documents:
 Reference package example:
 
 - `examples/api/main.go`
+- `examples/worker/main.go`
