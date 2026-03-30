@@ -88,6 +88,7 @@ This repository must include documentation for:
 The generic application integration guide should live at:
 
 - `docs/gin-integration-guide.md`
+- `docs/testing-matrix.md`
 
 ## Expected Consumers
 

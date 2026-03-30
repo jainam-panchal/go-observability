@@ -75,3 +75,4 @@ Required validation before marking implementation verified:
 - `docs/gin-integration-guide.md` is the canonical generic integration guide and must stay application-agnostic while still carrying concrete wiring snippets for startup, Gin, GORM, raw SQL, outbound HTTP, and worker flows
 - `examples/api/main.go` is the canonical generic API example and must compile as a self-contained reference for startup, Gin middleware, contextual logging, GORM wiring, and outbound HTTP usage
 - `examples/worker/main.go` is the canonical generic worker example and must compile as a self-contained reference for startup, job span lifecycle, contextual logging, and traced SQL work inside a job
+- `docs/testing-matrix.md` is the canonical testing inventory and must stay aligned with the checklist smoke rows and the current unit test files
