@@ -118,6 +118,7 @@ Current exported integration points:
 - `httpclient.NewTransport(...)`
 - `httpclient.NewClient(...)`
 - `database.InstrumentGORM(...)`
+- `worker.StartJob(...)`
 
 Current Gin middleware metric names:
 
@@ -131,3 +132,13 @@ Current GORM adapter behavior:
 - uses `gorm.io/plugin/opentelemetry/tracing` for operation spans
 - adds a transaction wrapper span for `db.WithContext(ctx).Transaction(...)` flows
 - operation span names follow SQL summaries such as `select table_name` and `insert table_name`
+
+Current worker helper behavior:
+
+- starts spans named `job <job_name>`
+- creates a root span when no incoming trace exists
+- creates a child span when job execution already has a parent context
+- emits:
+  - `worker.job.started`
+  - `worker.job.completed`
+  - `worker.job.duration`

@@ -188,6 +188,16 @@ Expected behavior:
 - emit worker metrics for started, completed, failed, and duration
 - propagate context into DB and outbound HTTP calls inside the job
 
+Current helper entry point:
+
+- `worker.StartJob(ctx, jobName)`
+
+Current metric names emitted by the worker helper:
+
+- `worker.job.started`
+- `worker.job.completed`
+- `worker.job.duration`
+
 ## 10. Container Logging Expectations
 
 For containerized applications, logs should be emitted to `stdout`.
