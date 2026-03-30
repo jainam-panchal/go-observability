@@ -115,6 +115,8 @@ Current exported integration points:
 - `logger.WithContext(...)`
 - `logger.L(ctx)`
 - `middleware.RegisterGinMiddlewares(...)`
+- `httpclient.NewTransport(...)`
+- `httpclient.NewClient(...)`
 
 Current Gin middleware metric names:
 

@@ -64,3 +64,5 @@ Required validation before marking implementation verified:
 - logger verification is tracked independently under `SMK-GO-007`; do not reuse broader Gin/http smoke rows to prove logger behavior
 - `middleware.RegisterGinMiddlewares` is the canonical Gin entry point and must create one server span per request, extract remote parent context, preserve the traced request context for handlers, and record low-cardinality request metrics using route templates
 - Gin middleware verification is tracked independently under `SMK-GO-008`; do not reuse outbound HTTP smoke rows to prove inbound request instrumentation
+- `httpclient.NewTransport` and `httpclient.NewClient` are the canonical outbound HTTP entry points and must preserve parent context, inject `traceparent`, and create client spans without forcing callers to replace their existing `http.Client` lifecycle
+- outbound HTTP verification remains under `SMK-GO-002`; keep it separate from inbound Gin middleware proof

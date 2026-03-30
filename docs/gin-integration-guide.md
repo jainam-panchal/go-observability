@@ -162,6 +162,11 @@ Expected behavior:
 
 Applications should avoid creating ad hoc uninstrumented HTTP clients once the module is integrated.
 
+Current helper entry points:
+
+- `httpclient.NewTransport(baseTransport)`
+- `httpclient.NewClient(baseClient)`
+
 ## 9. Worker Integration
 
 Applications with background jobs, queue consumers, or scheduled tasks should instrument job execution explicitly.
