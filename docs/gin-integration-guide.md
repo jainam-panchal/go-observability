@@ -80,6 +80,26 @@ Current bootstrap API:
 - `telemetry.Init(cfg)`
 - `telemetry.MustInit(cfg)`
 
+Reference startup shape:
+
+```go
+cfg := telemetry.LoadConfigFromEnv()
+
+shutdown, err := telemetry.Init(cfg)
+if err != nil {
+	return fmt.Errorf("init telemetry: %w", err)
+}
+defer func() {
+	_ = shutdown(context.Background())
+}()
+
+appLogger, err := logger.New(cfg)
+if err != nil {
+	return fmt.Errorf("init logger: %w", err)
+}
+zap.ReplaceGlobals(appLogger)
+```
+
 ## 5. Gin Middleware Integration
 
 Register observability middleware near the top of the Gin middleware stack.
@@ -109,6 +129,19 @@ Current metric names emitted by the Gin middleware:
 - `http.server.request.duration`
 - `http.server.active_requests`
 
+Reference Gin wiring:
+
+```go
+r := gin.New()
+r.Use(gin.Recovery())
+middleware.RegisterGinMiddlewares(r)
+
+r.GET("/users/:id", func(c *gin.Context) {
+	logger.L(c.Request.Context()).Info("handling request")
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+})
+```
+
 ## 6. Logging Integration
 
 The module should support structured logging for Gin applications without forcing a full logger rewrite.
@@ -127,6 +160,14 @@ For applications that already use Zap:
 - support request and job log enrichment from `context.Context`
 
 Applications that use global loggers only should gradually adopt context-aware logging in request and worker paths where trace correlation matters most.
+
+Reference logging shape:
+
+```go
+func handler(c *gin.Context) {
+	logger.L(c.Request.Context()).Info("fetching user")
+}
+```
 
 ## 7. GORM Integration
 
@@ -164,6 +205,29 @@ Current secondary helper entry point:
 
 - `database.OpenInstrumentedSQL(driverName, dsn)`
 
+Reference GORM wiring:
+
+```go
+db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+if err != nil {
+	return fmt.Errorf("open gorm db: %w", err)
+}
+
+db, err = database.InstrumentGORM(db)
+if err != nil {
+	return fmt.Errorf("instrument gorm db: %w", err)
+}
+```
+
+Reference raw SQL wiring:
+
+```go
+sqlDB, err := database.OpenInstrumentedSQL("postgres", dsn)
+if err != nil {
+	return fmt.Errorf("open instrumented sql db: %w", err)
+}
+```
+
 ## 8. Outbound HTTP Integration
 
 All outbound HTTP clients used for service-to-service calls should use an instrumented transport or helper from the module.
@@ -180,6 +244,21 @@ Current helper entry points:
 
 - `httpclient.NewTransport(baseTransport)`
 - `httpclient.NewClient(baseClient)`
+
+Reference outbound HTTP wiring:
+
+```go
+client := httpclient.NewClient(&http.Client{
+	Timeout: 5 * time.Second,
+})
+
+req, err := http.NewRequestWithContext(ctx, http.MethodGet, downstreamURL, nil)
+if err != nil {
+	return err
+}
+
+resp, err := client.Do(req)
+```
 
 ## 9. Worker Integration
 
@@ -201,6 +280,20 @@ Current metric names emitted by the worker helper:
 - `worker.job.started`
 - `worker.job.completed`
 - `worker.job.duration`
+
+Reference worker wiring:
+
+```go
+func runJob(ctx context.Context, jobName string) error {
+	ctx, finish := worker.StartJob(ctx, jobName)
+	defer func() {
+		finish(err)
+	}()
+
+	logger.L(ctx).Info("starting job")
+	return doWork(ctx)
+}
+```
 
 ## 10. Container Logging Expectations
 
@@ -260,3 +353,10 @@ A feature should not be marked complete until relevant smoke checks pass and res
 - creating DB operations without `context.Context`
 - adding middleware too late in the Gin stack
 - assuming `localhost:4317` works in all container networking modes
+
+## 14. Cross-Repo References
+
+Related platform-side documents:
+
+- `observability-infra/docs/application-integration-contract.md`
+- `observability-infra/docs/grafana-dashboard-spec.md`

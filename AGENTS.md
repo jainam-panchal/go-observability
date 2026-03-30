@@ -72,3 +72,4 @@ Required validation before marking implementation verified:
 - raw SQL verification remains under `SMK-GO-003`; do not let it redefine the primary GORM integration contract
 - `worker.StartJob` is the canonical worker entry point and must create a root job span when no parent exists, create a child job span when parent context exists, and emit stable low-cardinality job metrics
 - worker verification remains under `SMK-GO-004`; it must prove root-span creation, parent propagation, and worker metric emission together
+- `docs/gin-integration-guide.md` is the canonical generic integration guide and must stay application-agnostic while still carrying concrete wiring snippets for startup, Gin, GORM, raw SQL, outbound HTTP, and worker flows
