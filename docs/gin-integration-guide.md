@@ -360,3 +360,7 @@ Related platform-side documents:
 
 - `observability-infra/docs/application-integration-contract.md`
 - `observability-infra/docs/grafana-dashboard-spec.md`
+
+Reference package example:
+
+- `examples/api/main.go`

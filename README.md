@@ -57,6 +57,7 @@ This repository will not own:
 - `database/`
 - `httpclient/`
 - `worker/`
+- `examples/`
 - `docs/`
 
 ## Required Integration Paths
