@@ -1,11 +1,15 @@
 package database
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 	otelgorm "gorm.io/plugin/opentelemetry/tracing"
@@ -14,6 +18,7 @@ import (
 const (
 	transactionSpanName = "gorm.Transaction"
 	transactionSpanKey  = "go-observability:gorm-transaction-span"
+	metricsStartKeyBase = "go-observability:gorm-metrics-start:"
 )
 
 // InstrumentGORM registers tracing instrumentation on an existing GORM
@@ -32,6 +37,9 @@ func InstrumentGORM(db *gorm.DB) (*gorm.DB, error) {
 
 	if err := db.Use(newTransactionPlugin(otel.GetTracerProvider())); err != nil {
 		return nil, fmt.Errorf("register gorm transaction plugin: %w", err)
+	}
+	if err := db.Use(newOperationMetricsPlugin(otel.GetMeterProvider())); err != nil {
+		return nil, fmt.Errorf("register gorm operation metrics plugin: %w", err)
 	}
 
 	return db, nil
@@ -97,6 +105,7 @@ func (p *transactionPlugin) before(tx *gorm.DB) {
 
 	parentCtx := tx.Statement.Context
 	ctx, span := p.tracer.Start(parentCtx, transactionSpanName, trace.WithSpanKind(trace.SpanKindClient))
+	span.SetAttributes(dbContextAttributes(parentCtx, "transaction", dbSystemName(tx))...)
 	tx.Statement.Context = ctx
 	tx.InstanceSet(transactionSpanKey, span)
 }
@@ -136,4 +145,122 @@ func isTransaction(tx *gorm.DB) bool {
 
 	_, ok := tx.Statement.ConnPool.(txCommitter)
 	return ok
+}
+
+type operationMetricsPlugin struct {
+	queryCount    metric.Int64Counter
+	queryDuration metric.Float64Histogram
+}
+
+func newOperationMetricsPlugin(provider metric.MeterProvider) gorm.Plugin {
+	meter := provider.Meter("github.com/jainam-panchal/go-observability/database")
+
+	queryCount, _ := meter.Int64Counter(
+		"db.query.count",
+		metric.WithDescription("Total number of traced database operations."),
+	)
+	queryDuration, _ := meter.Float64Histogram(
+		"db.query.duration",
+		metric.WithDescription("Duration of traced database operations in seconds."),
+		metric.WithUnit("s"),
+	)
+
+	return &operationMetricsPlugin{
+		queryCount:    queryCount,
+		queryDuration: queryDuration,
+	}
+}
+
+func (p *operationMetricsPlugin) Name() string {
+	return "go-observability-operation-metrics"
+}
+
+func (p *operationMetricsPlugin) Initialize(db *gorm.DB) error {
+	callbacks := []struct {
+		afterOtel func(name string) callbackRegistrar
+		beforeEnd func(name string) callbackRegistrar
+		name      string
+	}{
+		{afterOtel: func(name string) callbackRegistrar { return db.Callback().Create().After(name) }, beforeEnd: func(name string) callbackRegistrar { return db.Callback().Create().Before(name) }, name: "create"},
+		{afterOtel: func(name string) callbackRegistrar { return db.Callback().Query().After(name) }, beforeEnd: func(name string) callbackRegistrar { return db.Callback().Query().Before(name) }, name: "query"},
+		{afterOtel: func(name string) callbackRegistrar { return db.Callback().Delete().After(name) }, beforeEnd: func(name string) callbackRegistrar { return db.Callback().Delete().Before(name) }, name: "delete"},
+		{afterOtel: func(name string) callbackRegistrar { return db.Callback().Update().After(name) }, beforeEnd: func(name string) callbackRegistrar { return db.Callback().Update().Before(name) }, name: "update"},
+		{afterOtel: func(name string) callbackRegistrar { return db.Callback().Row().After(name) }, beforeEnd: func(name string) callbackRegistrar { return db.Callback().Row().Before(name) }, name: "row"},
+		{afterOtel: func(name string) callbackRegistrar { return db.Callback().Raw().After(name) }, beforeEnd: func(name string) callbackRegistrar { return db.Callback().Raw().Before(name) }, name: "raw"},
+	}
+
+	for _, callback := range callbacks {
+		afterName := "go-observability:after-otel-start:" + callback.name
+		beforeEndName := "go-observability:before-otel-end:" + callback.name
+
+		if err := callback.afterOtel("otel:before:"+callback.name).Register(afterName, p.before(callback.name)); err != nil {
+			return fmt.Errorf("register %s: %w", afterName, err)
+		}
+		if err := callback.beforeEnd("otel:after:"+callback.name).Register(beforeEndName, p.after(callback.name)); err != nil {
+			return fmt.Errorf("register %s: %w", beforeEndName, err)
+		}
+	}
+
+	return nil
+}
+
+func (p *operationMetricsPlugin) before(operation string) func(*gorm.DB) {
+	return func(tx *gorm.DB) {
+		if tx == nil || tx.Statement == nil || tx.Statement.Context == nil {
+			return
+		}
+
+		annotateDBSpan(tx.Statement.Context, operation, dbSystemName(tx))
+		tx.InstanceSet(metricsStartKeyBase+operation, time.Now())
+	}
+}
+
+func (p *operationMetricsPlugin) after(operation string) func(*gorm.DB) {
+	return func(tx *gorm.DB) {
+		if tx == nil || tx.Statement == nil || tx.Statement.Context == nil {
+			return
+		}
+
+		value, exists := tx.InstanceGet(metricsStartKeyBase + operation)
+		if !exists {
+			return
+		}
+
+		start, ok := value.(time.Time)
+		if !ok || start.IsZero() {
+			return
+		}
+
+		attrs := dbContextAttributes(tx.Statement.Context, operation, dbSystemName(tx))
+		p.queryCount.Add(tx.Statement.Context, 1, metric.WithAttributes(attrs...))
+		p.queryDuration.Record(tx.Statement.Context, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
+		tx.InstanceSet(metricsStartKeyBase+operation, nil)
+	}
+}
+
+func annotateDBSpan(ctx context.Context, operation, system string) {
+	span := trace.SpanFromContext(ctx)
+	if !span.SpanContext().IsValid() {
+		return
+	}
+
+	span.SetAttributes(dbContextAttributes(ctx, operation, system)...)
+}
+
+func dbSystemName(tx *gorm.DB) string {
+	if tx == nil || tx.Dialector == nil {
+		return ""
+	}
+
+	name := tx.Dialector.Name()
+	switch strings.ToLower(name) {
+	case "postgres", "postgresql", "pgx":
+		return "postgresql"
+	case "mysql":
+		return "mysql"
+	case "sqlite", "sqlite3":
+		return "sqlite"
+	default:
+		return name
+	}
 }

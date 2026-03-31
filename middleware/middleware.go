@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jainam-panchal/go-observability/internal/requestmeta"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -74,6 +75,7 @@ func (m *ginMiddleware) Handler() gin.HandlerFunc {
 		)
 		defer span.End()
 
+		ctx = requestmeta.WithHTTPMetadata(ctx, method, route)
 		c.Request = c.Request.WithContext(ctx)
 
 		activeAttrs := []attribute.KeyValue{

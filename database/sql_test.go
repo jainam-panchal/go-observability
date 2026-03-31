@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/jainam-panchal/go-observability/internal/jobmeta"
+	"github.com/jainam-panchal/go-observability/internal/requestmeta"
 	_ "github.com/mattn/go-sqlite3"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -20,6 +23,7 @@ func TestOpenInstrumentedSQLCreatesQuerySpanInParentTrace(t *testing.T) {
 
 	tracer := otel.GetTracerProvider().Tracer("sql-test")
 	ctx, parentSpan := tracer.Start(context.Background(), "parent-query")
+	ctx = requestmeta.WithHTTPMetadata(ctx, "GET", "/users/:id")
 
 	var got string
 	if err := db.QueryRowContext(ctx, `SELECT name FROM sql_test_models WHERE id = ?`, 1).Scan(&got); err != nil {
@@ -32,6 +36,7 @@ func TestOpenInstrumentedSQLCreatesQuerySpanInParentTrace(t *testing.T) {
 	}
 
 	assertHasSQLSpanInTrace(t, spanRecorder.Ended(), parentSpan.SpanContext().TraceID())
+	assertHasSQLSpanAttribute(t, spanRecorder.Ended(), parentSpan.SpanContext().TraceID(), "http.route", "/users/:id")
 }
 
 func TestOpenInstrumentedSQLKeepsTransactionWorkInParentTrace(t *testing.T) {
@@ -40,6 +45,7 @@ func TestOpenInstrumentedSQLKeepsTransactionWorkInParentTrace(t *testing.T) {
 
 	tracer := otel.GetTracerProvider().Tracer("sql-test")
 	ctx, parentSpan := tracer.Start(context.Background(), "parent-tx")
+	ctx = requestmeta.WithHTTPMetadata(ctx, "POST", "/jobs")
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -54,6 +60,28 @@ func TestOpenInstrumentedSQLKeepsTransactionWorkInParentTrace(t *testing.T) {
 	parentSpan.End()
 
 	assertHasSQLSpanInTrace(t, spanRecorder.Ended(), parentSpan.SpanContext().TraceID())
+	assertHasSQLSpanAttribute(t, spanRecorder.Ended(), parentSpan.SpanContext().TraceID(), "http.route", "/jobs")
+}
+
+func TestOpenInstrumentedSQLAddsWorkerJobMetadataToSpans(t *testing.T) {
+	db, spanRecorder, restore := newInstrumentedSQLDB(t)
+	defer restore()
+
+	tracer := otel.GetTracerProvider().Tracer("sql-test")
+	ctx, parentSpan := tracer.Start(context.Background(), "parent-worker-query")
+	ctx = jobmeta.WithJobMetadata(ctx, "thumbnail.render")
+
+	var got string
+	if err := db.QueryRowContext(ctx, `SELECT name FROM sql_test_models WHERE id = ?`, 1).Scan(&got); err != nil {
+		t.Fatalf("QueryRowContext().Scan() error = %v", err)
+	}
+	parentSpan.End()
+
+	if got != "alice" {
+		t.Fatalf("queried name = %q, want %q", got, "alice")
+	}
+
+	assertHasSQLSpanAttribute(t, spanRecorder.Ended(), parentSpan.SpanContext().TraceID(), "job.name", "thumbnail.render")
 }
 
 func TestOpenInstrumentedSQLRejectsEmptyDriverName(t *testing.T) {
@@ -108,4 +136,21 @@ func assertHasSQLSpanInTrace(t *testing.T, spans []sdktrace.ReadOnlySpan, traceI
 	}
 
 	t.Fatalf("no client SQL span found in trace %s", traceID)
+}
+
+func assertHasSQLSpanAttribute(t *testing.T, spans []sdktrace.ReadOnlySpan, traceID trace.TraceID, key, want string) {
+	t.Helper()
+
+	for _, span := range spans {
+		if span.SpanContext().TraceID() != traceID || span.SpanKind() != trace.SpanKindClient {
+			continue
+		}
+		for _, attr := range span.Attributes() {
+			if string(attr.Key) == key && attr.Value.Type() == attribute.STRING && attr.Value.AsString() == want {
+				return
+			}
+		}
+	}
+
+	t.Fatalf("client SQL span attribute %q=%q not found in trace %s", key, want, traceID)
 }

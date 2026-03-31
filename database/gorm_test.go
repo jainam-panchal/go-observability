@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/jainam-panchal/go-observability/internal/requestmeta"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -25,6 +27,7 @@ func TestInstrumentGORMCreatesQuerySpanWithParentContext(t *testing.T) {
 
 	tracer := otel.GetTracerProvider().Tracer("gorm-test")
 	ctx, parentSpan := tracer.Start(context.Background(), "parent-query")
+	ctx = requestmeta.WithHTTPMetadata(ctx, "GET", "/users/:id")
 
 	var model gormTestModel
 	if err := db.WithContext(ctx).First(&model, "name = ?", "alice").Error; err != nil {
@@ -35,6 +38,7 @@ func TestInstrumentGORMCreatesQuerySpanWithParentContext(t *testing.T) {
 	assertHasSpanInTraceMatching(t, spanRecorder.Ended(), parentSpan.SpanContext().TraceID(), func(name string) bool {
 		return name == "select gorm_test_models"
 	})
+	assertSpanInTraceHasAttribute(t, spanRecorder.Ended(), parentSpan.SpanContext().TraceID(), "http.route", "/users/:id")
 }
 
 func TestInstrumentGORMCreatesTransactionSpansWithParentContext(t *testing.T) {
@@ -43,6 +47,7 @@ func TestInstrumentGORMCreatesTransactionSpansWithParentContext(t *testing.T) {
 
 	tracer := otel.GetTracerProvider().Tracer("gorm-test")
 	ctx, parentSpan := tracer.Start(context.Background(), "parent-tx")
+	ctx = requestmeta.WithHTTPMetadata(ctx, "POST", "/users")
 
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return tx.Create(&gormTestModel{Name: "bob"}).Error
@@ -56,6 +61,7 @@ func TestInstrumentGORMCreatesTransactionSpansWithParentContext(t *testing.T) {
 	assertHasSpanInTraceMatching(t, spanRecorder.Ended(), parentSpan.SpanContext().TraceID(), func(name string) bool {
 		return name == "insert gorm_test_models"
 	})
+	assertSpanInTraceHasAttribute(t, spanRecorder.Ended(), parentSpan.SpanContext().TraceID(), "http.route", "/users")
 }
 
 func TestInstrumentGORMRejectsNilDB(t *testing.T) {
@@ -139,4 +145,21 @@ func spanNames(spans []sdktrace.ReadOnlySpan) []string {
 	}
 
 	return names
+}
+
+func assertSpanInTraceHasAttribute(t *testing.T, spans []sdktrace.ReadOnlySpan, traceID trace.TraceID, key, want string) {
+	t.Helper()
+
+	for _, span := range spans {
+		if span.SpanContext().TraceID() != traceID {
+			continue
+		}
+		for _, attr := range span.Attributes() {
+			if string(attr.Key) == key && attr.Value.Type() == attribute.STRING && attr.Value.AsString() == want {
+				return
+			}
+		}
+	}
+
+	t.Fatalf("attribute %q=%q not found in trace %s", key, want, traceID)
 }

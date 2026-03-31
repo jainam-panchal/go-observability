@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jainam-panchal/go-observability/internal/jobmeta"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -67,6 +68,7 @@ func (i instrumenter) StartJob(ctx context.Context, jobName string) (context.Con
 		trace.WithSpanKind(trace.SpanKindInternal),
 		trace.WithAttributes(jobAttrs...),
 	)
+	ctx = jobmeta.WithJobMetadata(ctx, jobName)
 	i.jobStarted.Add(ctx, 1, metric.WithAttributes(jobAttrs...))
 
 	start := time.Now()
