@@ -58,6 +58,7 @@ func newWithCore(cfg telemetry.Config, core zapcore.Core, options ...zap.Option)
 		zap.String("service", cfg.ServiceName),
 		zap.String("service_version", cfg.ServiceVersion),
 		zap.String("deployment_environment", cfg.Environment),
+		zap.String("service_role", cfg.ServiceRole),
 	), nil
 }
 

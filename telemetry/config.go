@@ -11,6 +11,7 @@ const (
 	defaultServiceName     = "unknown-service"
 	defaultServiceVersion  = "1.0.0"
 	defaultEnvironment     = "development"
+	defaultServiceRole     = "unknown"
 	defaultOTLPEndpoint    = "localhost:4317"
 	defaultLogLevel        = "info"
 	defaultTraceSampleRate = 1.0
@@ -24,6 +25,7 @@ type Config struct {
 	ServiceName       string
 	ServiceVersion    string
 	Environment       string
+	ServiceRole       string
 	OTLPEndpoint      string
 	LogLevel          string
 	TraceSamplingRate float64
@@ -39,6 +41,7 @@ func DefaultConfig() Config {
 		ServiceName:       defaultServiceName,
 		ServiceVersion:    defaultServiceVersion,
 		Environment:       defaultEnvironment,
+		ServiceRole:       defaultServiceRole,
 		OTLPEndpoint:      defaultOTLPEndpoint,
 		LogLevel:          defaultLogLevel,
 		TraceSamplingRate: defaultTraceSampleRate,
@@ -56,6 +59,8 @@ func LoadConfigFromEnv() Config {
 	cfg.ServiceName = loadString("OTEL_SERVICE_NAME", cfg.ServiceName)
 	cfg.ServiceVersion = loadString("OTEL_SERVICE_VERSION", cfg.ServiceVersion)
 	cfg.Environment = loadString("DEPLOYMENT_ENVIRONMENT", loadString("ENVIRONMENT", cfg.Environment))
+	cfg.ServiceRole = loadString("OTEL_SERVICE_ROLE",
+		loadString("SERVICE_ROLE", cfg.ServiceRole))
 	cfg.OTLPEndpoint = loadString("OTEL_EXPORTER_OTLP_ENDPOINT", cfg.OTLPEndpoint)
 	cfg.LogLevel = loadString("LOG_LEVEL", cfg.LogLevel)
 	cfg.TraceSamplingRate = loadFloat("OTEL_TRACE_SAMPLING_RATE", cfg.TraceSamplingRate)

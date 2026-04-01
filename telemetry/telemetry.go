@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -73,6 +74,7 @@ func newResource(cfg Config) (*resource.Resource, error) {
 			semconv.ServiceName(cfg.ServiceName),
 			semconv.ServiceVersion(cfg.ServiceVersion),
 			semconv.DeploymentEnvironmentName(cfg.Environment),
+			attribute.String("service.role", cfg.ServiceRole),
 		),
 	)
 }

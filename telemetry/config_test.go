@@ -16,6 +16,9 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Environment != defaultEnvironment {
 		t.Fatalf("Environment = %q, want %q", cfg.Environment, defaultEnvironment)
 	}
+	if cfg.ServiceRole != defaultServiceRole {
+		t.Fatalf("ServiceRole = %q, want %q", cfg.ServiceRole, defaultServiceRole)
+	}
 	if cfg.OTLPEndpoint != defaultOTLPEndpoint {
 		t.Fatalf("OTLPEndpoint = %q, want %q", cfg.OTLPEndpoint, defaultOTLPEndpoint)
 	}
@@ -40,6 +43,7 @@ func TestLoadConfigFromEnv(t *testing.T) {
 	t.Setenv("OTEL_SERVICE_NAME", "checkout-api")
 	t.Setenv("OTEL_SERVICE_VERSION", "2.3.4")
 	t.Setenv("DEPLOYMENT_ENVIRONMENT", "production")
+	t.Setenv("OTEL_SERVICE_ROLE", "api")
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("OTEL_TRACE_SAMPLING_RATE", "0.25")
@@ -57,6 +61,9 @@ func TestLoadConfigFromEnv(t *testing.T) {
 	}
 	if cfg.Environment != "production" {
 		t.Fatalf("Environment = %q, want %q", cfg.Environment, "production")
+	}
+	if cfg.ServiceRole != "api" {
+		t.Fatalf("ServiceRole = %q, want %q", cfg.ServiceRole, "api")
 	}
 	if cfg.OTLPEndpoint != "otel-collector:4317" {
 		t.Fatalf("OTLPEndpoint = %q, want %q", cfg.OTLPEndpoint, "otel-collector:4317")
@@ -116,5 +123,15 @@ func TestLoadConfigFromEnvPrefersDeploymentEnvironment(t *testing.T) {
 
 	if cfg.Environment != "production" {
 		t.Fatalf("Environment = %q, want %q", cfg.Environment, "production")
+	}
+}
+
+func TestLoadConfigFromEnvSupportsServiceRoleFallback(t *testing.T) {
+	t.Setenv("SERVICE_ROLE", "worker")
+
+	cfg := LoadConfigFromEnv()
+
+	if cfg.ServiceRole != "worker" {
+		t.Fatalf("ServiceRole = %q, want %q", cfg.ServiceRole, "worker")
 	}
 }

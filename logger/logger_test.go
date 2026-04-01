@@ -18,6 +18,7 @@ func TestNewAddsServiceFields(t *testing.T) {
 	cfg.ServiceName = "orders-api"
 	cfg.ServiceVersion = "2.0.1"
 	cfg.Environment = "production"
+	cfg.ServiceRole = "api"
 
 	core, observed := observer.New(zapcore.InfoLevel)
 	logger, err := newWithCore(cfg, core)
@@ -36,6 +37,9 @@ func TestNewAddsServiceFields(t *testing.T) {
 	}
 	if entry.ContextMap()["deployment_environment"] != "production" {
 		t.Fatalf("deployment_environment = %v, want %q", entry.ContextMap()["deployment_environment"], "production")
+	}
+	if entry.ContextMap()["service_role"] != "api" {
+		t.Fatalf("service_role = %v, want %q", entry.ContextMap()["service_role"], "api")
 	}
 }
 
