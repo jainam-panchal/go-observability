@@ -40,6 +40,7 @@ At minimum, the application should define:
 - `OTEL_TRACE_SAMPLING_RATE`
 - `OTEL_TRACES_ENABLED`
 - `OTEL_METRICS_ENABLED`
+- `OTEL_RUNTIME_METRICS_ENABLED`
 - `LOG_LEVEL`
 
 Typical containerized value for collector endpoint:
@@ -129,6 +130,14 @@ Current metric names emitted by the Gin middleware:
 - `http.server.request.count`
 - `http.server.request.duration`
 - `http.server.active_requests`
+
+Runtime/process metrics emitted when `OTEL_RUNTIME_METRICS_ENABLED=true`:
+
+- `process.cpu.seconds`
+- `process.resident.memory.bytes`
+- `go.goroutines`
+- `go.gc.cycles`
+- `go.gc.last_pause.seconds`
 
 Reference Gin wiring:
 

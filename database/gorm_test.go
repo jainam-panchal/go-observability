@@ -70,6 +70,39 @@ func TestInstrumentGORMRejectsNilDB(t *testing.T) {
 	}
 }
 
+func TestInstrumentGORMEnrichesDBSpanWithTemplateFingerprintAndRows(t *testing.T) {
+	db, spanRecorder, restore := newInstrumentedTestDB(t)
+	defer restore()
+
+	tracer := otel.GetTracerProvider().Tracer("gorm-test")
+	ctx, parentSpan := tracer.Start(context.Background(), "parent-db-enrichment")
+
+	var model gormTestModel
+	if err := db.WithContext(ctx).First(&model, "name = ?", "alice").Error; err != nil {
+		t.Fatalf("First() error = %v", err)
+	}
+	parentSpan.End()
+
+	traceID := parentSpan.SpanContext().TraceID()
+	selectSpan := findSpanInTraceByName(spanRecorder.Ended(), traceID, "select gorm_test_models")
+	if selectSpan == nil {
+		t.Fatalf("select span not found in trace %s", traceID)
+	}
+
+	if got, ok := getStringAttribute(selectSpan.Attributes(), "db.query.template"); !ok || got == "" {
+		t.Fatalf("db.query.template missing: %#v", selectSpan.Attributes())
+	}
+	if got, ok := getStringAttribute(selectSpan.Attributes(), "db.query.fingerprint"); !ok || got == "" {
+		t.Fatalf("db.query.fingerprint missing: %#v", selectSpan.Attributes())
+	}
+	if got, ok := getStringAttribute(selectSpan.Attributes(), "db.table"); !ok || got != "gorm_test_models" {
+		t.Fatalf("db.table = %q (ok=%v), want %q", got, ok, "gorm_test_models")
+	}
+	if got, ok := getIntAttribute(selectSpan.Attributes(), "db.rows_affected"); !ok || got != 1 {
+		t.Fatalf("db.rows_affected = %d (ok=%v), want %d", got, ok, 1)
+	}
+}
+
 func newInstrumentedTestDB(t *testing.T) (*gorm.DB, *tracetest.SpanRecorder, func()) {
 	t.Helper()
 
@@ -162,4 +195,34 @@ func assertSpanInTraceHasAttribute(t *testing.T, spans []sdktrace.ReadOnlySpan, 
 	}
 
 	t.Fatalf("attribute %q=%q not found in trace %s", key, want, traceID)
+}
+
+func findSpanInTraceByName(spans []sdktrace.ReadOnlySpan, traceID trace.TraceID, name string) sdktrace.ReadOnlySpan {
+	for _, span := range spans {
+		if span.SpanContext().TraceID() == traceID && span.Name() == name {
+			return span
+		}
+	}
+
+	return nil
+}
+
+func getStringAttribute(attrs []attribute.KeyValue, key string) (string, bool) {
+	for _, attr := range attrs {
+		if string(attr.Key) == key && attr.Value.Type() == attribute.STRING {
+			return attr.Value.AsString(), true
+		}
+	}
+
+	return "", false
+}
+
+func getIntAttribute(attrs []attribute.KeyValue, key string) (int64, bool) {
+	for _, attr := range attrs {
+		if string(attr.Key) == key && attr.Value.Type() == attribute.INT64 {
+			return attr.Value.AsInt64(), true
+		}
+	}
+
+	return 0, false
 }

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
@@ -31,7 +31,7 @@ func Init(cfg Config) (ShutdownFunc, error) {
 		return nil, fmt.Errorf("create resource: %w", err)
 	}
 
-	shutdowns := make([]func(context.Context) error, 0, 2)
+	shutdowns := make([]func(context.Context) error, 0, 3)
 
 	tracerProvider, traceShutdown, err := newTracerProvider(context.Background(), cfg, res)
 	if err != nil {
@@ -51,6 +51,12 @@ func Init(cfg Config) (ShutdownFunc, error) {
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
+
+	runtimeShutdown, err := startRuntimeMetrics(context.Background(), meterProvider, cfg)
+	if err != nil {
+		return nil, shutdownAll(context.Background(), shutdowns, fmt.Errorf("init runtime metrics: %w", err))
+	}
+	shutdowns = append(shutdowns, runtimeShutdown)
 
 	return func(ctx context.Context) error {
 		return shutdownAll(ctx, shutdowns, nil)

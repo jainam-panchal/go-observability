@@ -17,6 +17,7 @@ const (
 	defaultTraceSampleRate = 1.0
 	defaultTracesEnabled   = true
 	defaultMetricsEnabled  = true
+	defaultRuntimeMetrics  = true
 	defaultMetricExportInt = 10 * time.Second
 )
 
@@ -31,6 +32,7 @@ type Config struct {
 	TraceSamplingRate float64
 	TracesEnabled     bool
 	MetricsEnabled    bool
+	RuntimeMetrics    bool
 	MetricsExportInt  time.Duration
 }
 
@@ -47,6 +49,7 @@ func DefaultConfig() Config {
 		TraceSamplingRate: defaultTraceSampleRate,
 		TracesEnabled:     defaultTracesEnabled,
 		MetricsEnabled:    defaultMetricsEnabled,
+		RuntimeMetrics:    defaultRuntimeMetrics,
 		MetricsExportInt:  defaultMetricExportInt,
 	}
 }
@@ -66,6 +69,7 @@ func LoadConfigFromEnv() Config {
 	cfg.TraceSamplingRate = loadFloat("OTEL_TRACE_SAMPLING_RATE", cfg.TraceSamplingRate)
 	cfg.TracesEnabled = loadBool("OTEL_TRACES_ENABLED", cfg.TracesEnabled)
 	cfg.MetricsEnabled = loadBool("OTEL_METRICS_ENABLED", cfg.MetricsEnabled)
+	cfg.RuntimeMetrics = loadBool("OTEL_RUNTIME_METRICS_ENABLED", cfg.RuntimeMetrics)
 	cfg.MetricsExportInt = loadDuration("OTEL_METRIC_EXPORT_INTERVAL", cfg.MetricsExportInt)
 
 	return cfg
