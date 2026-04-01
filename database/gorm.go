@@ -196,28 +196,29 @@ func (p *operationMetricsPlugin) Name() string {
 
 func (p *operationMetricsPlugin) Initialize(db *gorm.DB) error {
 	callbacks := []struct {
-		afterOtel func(name string) callbackRegistrar
-		beforeEnd func(name string) callbackRegistrar
-		name      string
-		otel      string
+		beforeCore func(name string) callbackRegistrar
+		afterEnd   func(name string) callbackRegistrar
+		name       string
+		core       string
+		end        string
 	}{
-		{afterOtel: func(name string) callbackRegistrar { return db.Callback().Create().After(name) }, beforeEnd: func(name string) callbackRegistrar { return db.Callback().Create().Before(name) }, name: "create", otel: "create"},
-		{afterOtel: func(name string) callbackRegistrar { return db.Callback().Query().After(name) }, beforeEnd: func(name string) callbackRegistrar { return db.Callback().Query().Before(name) }, name: "query", otel: "select"},
-		{afterOtel: func(name string) callbackRegistrar { return db.Callback().Delete().After(name) }, beforeEnd: func(name string) callbackRegistrar { return db.Callback().Delete().Before(name) }, name: "delete", otel: "delete"},
-		{afterOtel: func(name string) callbackRegistrar { return db.Callback().Update().After(name) }, beforeEnd: func(name string) callbackRegistrar { return db.Callback().Update().Before(name) }, name: "update", otel: "update"},
-		{afterOtel: func(name string) callbackRegistrar { return db.Callback().Row().After(name) }, beforeEnd: func(name string) callbackRegistrar { return db.Callback().Row().Before(name) }, name: "row", otel: "row"},
-		{afterOtel: func(name string) callbackRegistrar { return db.Callback().Raw().After(name) }, beforeEnd: func(name string) callbackRegistrar { return db.Callback().Raw().Before(name) }, name: "raw", otel: "raw"},
+		{beforeCore: func(name string) callbackRegistrar { return db.Callback().Create().Before(name) }, afterEnd: func(name string) callbackRegistrar { return db.Callback().Create().After(name) }, name: "create", core: "gorm:create", end: "gorm:after_create"},
+		{beforeCore: func(name string) callbackRegistrar { return db.Callback().Query().Before(name) }, afterEnd: func(name string) callbackRegistrar { return db.Callback().Query().After(name) }, name: "query", core: "gorm:query", end: "gorm:after_query"},
+		{beforeCore: func(name string) callbackRegistrar { return db.Callback().Delete().Before(name) }, afterEnd: func(name string) callbackRegistrar { return db.Callback().Delete().After(name) }, name: "delete", core: "gorm:delete", end: "gorm:after_delete"},
+		{beforeCore: func(name string) callbackRegistrar { return db.Callback().Update().Before(name) }, afterEnd: func(name string) callbackRegistrar { return db.Callback().Update().After(name) }, name: "update", core: "gorm:update", end: "gorm:after_update"},
+		{beforeCore: func(name string) callbackRegistrar { return db.Callback().Row().Before(name) }, afterEnd: func(name string) callbackRegistrar { return db.Callback().Row().After(name) }, name: "row", core: "gorm:row", end: "gorm:row"},
+		{beforeCore: func(name string) callbackRegistrar { return db.Callback().Raw().Before(name) }, afterEnd: func(name string) callbackRegistrar { return db.Callback().Raw().After(name) }, name: "raw", core: "gorm:raw", end: "gorm:raw"},
 	}
 
 	for _, callback := range callbacks {
-		afterName := "go-observability:after-otel-start:" + callback.name
-		beforeEndName := "go-observability:before-otel-end:" + callback.name
+		beforeName := "go-observability:before-gorm-core:" + callback.name
+		afterName := "go-observability:after-gorm-end:" + callback.name
 
-		if err := callback.afterOtel("otel:before:"+callback.otel).Register(afterName, p.before(callback.name)); err != nil {
-			return fmt.Errorf("register %s: %w", afterName, err)
+		if err := callback.beforeCore(callback.core).Register(beforeName, p.before(callback.name)); err != nil {
+			return fmt.Errorf("register %s: %w", beforeName, err)
 		}
-		if err := callback.beforeEnd("otel:after:"+callback.otel).Register(beforeEndName, p.after(callback.name)); err != nil {
-			return fmt.Errorf("register %s: %w", beforeEndName, err)
+		if err := callback.afterEnd(callback.end).Register(afterName, p.after(callback.name)); err != nil {
+			return fmt.Errorf("register %s: %w", afterName, err)
 		}
 	}
 
